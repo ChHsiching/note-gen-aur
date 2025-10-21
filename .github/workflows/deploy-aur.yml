@@ -1,0 +1,46 @@
+name: Deploy to AUR
+
+on:
+  push:
+    paths:
+      - 'PKGBUILD'
+      - '.SRCINFO'
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/heads/main')
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup SSH for AUR
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.AUR_SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H aur.archlinux.org >> ~/.ssh/known_hosts
+
+    - name: Install dependencies
+      run: |
+        sudo pacman -Syu --noconfirm base-devel binutils
+
+    - name: Validate package
+      run: |
+        # 临时禁用strip以获取调试信息
+        sed -i 's/options=(!strip)/options=()/' PKGBUILD
+
+        # 构建包验证
+        makepkg -f --noconfirm
+
+    - name: Deploy to AUR
+      run: |
+        ./scripts/deploy-to-aur.sh
+
+    - name: Clean up SSH keys
+      if: always()
+      run: |
+        rm -rf ~/.ssh
