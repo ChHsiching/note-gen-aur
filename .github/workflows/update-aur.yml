@@ -22,8 +22,18 @@ jobs:
     - name: Update PKGBUILD version
       run: |
         NEW_VERSION="${{ inputs.version }}"
-        sed -i "s/^pkgver=.*/pkgver=$NEW_VERSION/" PKGBUILD
-        sed -i "s/^pkgrel=.*/pkgrel=1/" PKGBUILD
+        CURRENT_VERSION=$(grep "^pkgver=" PKGBUILD | cut -d'=' -f2)
+
+        if [ "$NEW_VERSION" = "$CURRENT_VERSION" ]; then
+          # Same version, increment pkgrel
+          CURRENT_PKGREL=$(grep "^pkgrel=" PKGBUILD | cut -d'=' -f2)
+          NEW_PKGREL=$((CURRENT_PKGREL + 1))
+          sed -i "s/^pkgrel=.*/pkgrel=$NEW_PKGREL/" PKGBUILD
+        else
+          # New version, reset pkgrel to 1
+          sed -i "s/^pkgver=.*/pkgver=$NEW_VERSION/" PKGBUILD
+          sed -i "s/^pkgrel=.*/pkgrel=1/" PKGBUILD
+        fi
 
     - name: Update source URL
       run: |
@@ -50,16 +60,17 @@ jobs:
 
     - name: Generate .SRCINFO
       run: |
-        # Extract the checksum from PKGBUILD
+        # Extract values from PKGBUILD
         CHECKSUM=$(grep "sha256sums=" PKGBUILD | sed "s/sha256sums=('//; s/')//")
-        VERSION="${{ inputs.version }}"
+        VERSION=$(grep "^pkgver=" PKGBUILD | cut -d'=' -f2)
+        PKGREL=$(grep "^pkgrel=" PKGBUILD | cut -d'=' -f2)
 
         # Generate .SRCINFO using multiple echo commands for better readability
         {
           echo "pkgbase = note-gen"
           echo -e "\tpkgdesc = A cross-platform Markdown note-taking application with AI integration"
           echo -e "\tpkgver = $VERSION"
-          echo -e "\tpkgrel = 1"
+          echo -e "\tpkgrel = $PKGREL"
           echo -e "\turl = https://github.com/codexu/note-gen"
           echo -e "\tarch = x86_64"
           echo -e "\tlicense = MIT"
