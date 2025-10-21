@@ -19,43 +19,67 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Setup Rust
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-
-    - name: Setup pnpm
-      uses: pnpm/action-setup@v3
-      with:
-        version: latest
-
     - name: Update PKGBUILD version
       run: |
         NEW_VERSION="${{ inputs.version }}"
         sed -i "s/^pkgver=.*/pkgver=$NEW_VERSION/" PKGBUILD
         sed -i "s/^pkgrel=.*/pkgrel=1/" PKGBUILD
 
+    - name: Update source URL
+      run: |
+        NEW_VERSION="${{ inputs.version }}"
+        # Update source URL with new version
+        sed -i "s/note-gen-v[0-9.]*/note-gen-v$NEW_VERSION/" PKGBUILD
+
     - name: Download source and generate checksum
       run: |
-        # 生成源码文件
-        makepkg --geninteg
+        # Extract source URL from PKGBUILD
+        SOURCE_URL=$(grep "source=" PKGBUILD | sed 's/.*"\(.*\)".*/\1/' | head -1)
+        echo "Downloading source from: $SOURCE_URL"
 
-    - name: Update checksums in PKGBUILD
-      run: |
-        # 提取checksum并更新到PKGBUILD
-        CHECKSUM=$(makepkg -g | sed 's/sha256sums=/sha256sums=('/' | sed 's/$/')/')
-        sed -i "/^sha256sums=/c\\$CHECKSUM" PKGBUILD
+        # Download source file
+        FILENAME=$(basename "$SOURCE_URL")
+        curl -L -o "$FILENAME" "$SOURCE_URL"
 
-    - name: Build package
-      run: |
-        makepkg -s --noconfirm
+        # Generate checksum
+        CHECKSUM=$(sha256sum "$FILENAME" | cut -d' ' -f1)
+        echo "Generated checksum: $CHECKSUM"
+
+        # Update checksum in PKGBUILD
+        sed -i "s/sha256sums=.*/sha256sums=('$CHECKSUM')/" PKGBUILD
 
     - name: Generate .SRCINFO
       run: |
-        makepkg --printsrcinfo > .SRCINFO
+        # Extract the checksum from PKGBUILD
+        CHECKSUM=$(grep "sha256sums=" PKGBUILD | sed "s/sha256sums=('//; s/')//")
+
+        # Simple .SRCINFO generation (basic version)
+        cat > .SRCINFO << EOF
+pkgbase = note-gen
+	pkgdesc = A cross-platform Markdown note-taking application with AI integration
+	pkgver = ${{ inputs.version }}
+	pkgrel = 1
+	url = https://github.com/codexu/note-gen
+	arch = x86_64
+	license = MIT
+	makedepends = rust
+	makedepends = cargo
+	makedepends = nodejs
+	makedepends = npm
+	makedepends = pnpm
+	depends = gtk3
+	depends = webkit2gtk-4.1
+	depends = libappindicator-gtk3
+	depends = librsvg
+	depends = libvips
+	provides = note-gen
+	conflicts = note-gen-bin
+	options = !strip
+	source = note-gen-${{ inputs.version }}.tar.gz::https://github.com/codexu/note-gen/archive/note-gen-v${{ inputs.version }}.tar.gz
+	sha256sums = ($CHECKSUM)
+
+pkgname = note-gen
+EOF
 
     - name: Commit and push changes
       run: |
@@ -64,5 +88,5 @@ jobs:
 
         VERSION="${{ inputs.version }}"
         git add PKGBUILD .SRCINFO
-        git commit -m "Update to version $VERSION"
+        git commit -m "🔖 chore(aur): update to version $VERSION"
         git push

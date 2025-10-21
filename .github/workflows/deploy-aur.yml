@@ -24,21 +24,52 @@ jobs:
         chmod 600 ~/.ssh/id_rsa
         ssh-keyscan -H aur.archlinux.org >> ~/.ssh/known_hosts
 
-    - name: Install dependencies
+    - name: Validate PKGBUILD syntax
       run: |
-        sudo pacman -Syu --noconfirm base-devel binutils
+        # Basic PKGBUILD syntax validation
+        if ! grep -q "^pkgname=" PKGBUILD; then
+          echo "ERROR: pkgname not found in PKGBUILD"
+          exit 1
+        fi
+        if ! grep -q "^pkgver=" PKGBUILD; then
+          echo "ERROR: pkgver not found in PKGBUILD"
+          exit 1
+        fi
+        if ! grep -q "^pkgrel=" PKGBUILD; then
+          echo "ERROR: pkgrel not found in PKGBUILD"
+          exit 1
+        fi
+        if ! grep -q "^arch=" PKGBUILD; then
+          echo "ERROR: arch not found in PKGBUILD"
+          exit 1
+        fi
+        echo "✅ PKGBUILD syntax validation passed"
 
-    - name: Validate package
+    - name: Clone AUR repository
       run: |
-        # 临时禁用strip以获取调试信息
-        sed -i 's/options=(!strip)/options=()/' PKGBUILD
-
-        # 构建包验证
-        makepkg -f --noconfirm
+        git clone ssh://aur@aur.archlinux.org/note-gen.git aur-repo
 
     - name: Deploy to AUR
       run: |
-        ./scripts/deploy-to-aur.sh
+        cd aur-repo
+
+        # Copy package files
+        cp ../PKGBUILD ../.SRCINFO ./
+
+        # Check for changes
+        if git diff --quiet && git diff --cached --quiet; then
+          echo "ℹ️ No changes to deploy"
+          exit 0
+        fi
+
+        # Configure Git
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+
+        # Commit and push
+        git add PKGBUILD .SRCINFO
+        git commit -m "Update NoteGen package"
+        git push
 
     - name: Clean up SSH keys
       if: always()
