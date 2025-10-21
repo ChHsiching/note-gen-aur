@@ -52,34 +52,35 @@ jobs:
       run: |
         # Extract the checksum from PKGBUILD
         CHECKSUM=$(grep "sha256sums=" PKGBUILD | sed "s/sha256sums=('//; s/')//")
+        VERSION="${{ inputs.version }}"
 
-        # Simple .SRCINFO generation (basic version)
-        cat > .SRCINFO << EOF
-pkgbase = note-gen
-	pkgdesc = A cross-platform Markdown note-taking application with AI integration
-	pkgver = ${{ inputs.version }}
-	pkgrel = 1
-	url = https://github.com/codexu/note-gen
-	arch = x86_64
-	license = MIT
-	makedepends = rust
-	makedepends = cargo
-	makedepends = nodejs
-	makedepends = npm
-	makedepends = pnpm
-	depends = gtk3
-	depends = webkit2gtk-4.1
-	depends = libappindicator-gtk3
-	depends = librsvg
-	depends = libvips
-	provides = note-gen
-	conflicts = note-gen-bin
-	options = !strip
-	source = note-gen-${{ inputs.version }}.tar.gz::https://github.com/codexu/note-gen/archive/note-gen-v${{ inputs.version }}.tar.gz
-	sha256sums = ($CHECKSUM)
-
-pkgname = note-gen
-EOF
+        # Generate .SRCINFO using multiple echo commands for better readability
+        {
+          echo "pkgbase = note-gen"
+          echo -e "\tpkgdesc = A cross-platform Markdown note-taking application with AI integration"
+          echo -e "\tpkgver = $VERSION"
+          echo -e "\tpkgrel = 1"
+          echo -e "\turl = https://github.com/codexu/note-gen"
+          echo -e "\tarch = x86_64"
+          echo -e "\tlicense = MIT"
+          echo -e "\tmakedepends = rust"
+          echo -e "\tmakedepends = cargo"
+          echo -e "\tmakedepends = nodejs"
+          echo -e "\tmakedepends = npm"
+          echo -e "\tmakedepends = pnpm"
+          echo -e "\tdepends = gtk3"
+          echo -e "\tdepends = webkit2gtk-4.1"
+          echo -e "\tdepends = libappindicator-gtk3"
+          echo -e "\tdepends = librsvg"
+          echo -e "\tdepends = libvips"
+          echo -e "\tprovides = note-gen"
+          echo -e "\tconflicts = note-gen-bin"
+          echo -e "\toptions = !strip"
+          echo -e "\tsource = note-gen-$VERSION.tar.gz::https://github.com/codexu/note-gen/archive/note-gen-v$VERSION.tar.gz"
+          echo -e "\tsha256sums = ($CHECKSUM)"
+          echo ""
+          echo "pkgname = note-gen"
+        } > .SRCINFO
 
     - name: Commit and push changes
       run: |
