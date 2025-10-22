@@ -134,6 +134,9 @@ jobs:
         git config user.name "ChHsich"
         git config user.email "hsichingchang@gmail.com"
 
+        # Pull any remote changes and rebase to avoid conflicts
+        git pull origin main --rebase
+
         git add PKGBUILD .SRCINFO
         git commit -m "🔖 chore(aur): update pkgrel to ${{ env.NEW_PKGREL }} based on AUR state"
         git push origin main
