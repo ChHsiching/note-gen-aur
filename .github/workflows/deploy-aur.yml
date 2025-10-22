@@ -139,13 +139,13 @@ jobs:
         git config user.name "ChHsich"
         git config user.email "hsichingchang@gmail.com"
 
-        # Add changes first to avoid unstaged files error
+        # Add and commit changes first, then pull to avoid rebase conflicts
         git add PKGBUILD .SRCINFO
-
-        # Pull any remote changes and rebase to avoid conflicts
-        git pull origin main --rebase
-
         git commit -m "🔖 chore(aur): update pkgrel to ${{ env.NEW_PKGREL }} based on AUR state"
+
+        # Pull any remote changes and merge (using merge instead of rebase for simplicity)
+        git pull origin main
+
         git push origin main
 
     - name: Deploy to AUR
