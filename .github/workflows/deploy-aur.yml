@@ -57,79 +57,84 @@ jobs:
           echo "✅ PKGBUILD content has changes, proceeding with pkgrel calculation"
         else
           echo "ℹ️ PKGBUILD content is identical to AUR, no changes needed"
-          exit 0
+          echo "NO_CHANGES=true" >> $GITHUB_ENV
         fi
 
-        # Get current version and pkgrel from local PKGBUILD
-        LOCAL_VERSION=$(grep "^pkgver=" PKGBUILD | cut -d'=' -f2)
-        LOCAL_PKGREL=$(grep "^pkgrel=" PKGBUILD | cut -d'=' -f2)
+        if [ "${{ env.NO_CHANGES }}" != "true" ]; then
+          # Get current version and pkgrel from local PKGBUILD
+          LOCAL_VERSION=$(grep "^pkgver=" PKGBUILD | cut -d'=' -f2)
+          LOCAL_PKGREL=$(grep "^pkgrel=" PKGBUILD | cut -d'=' -f2)
 
-        echo "Local version: $LOCAL_VERSION, pkgrel: $LOCAL_PKGREL"
+          echo "Local version: $LOCAL_VERSION, pkgrel: $LOCAL_PKGREL"
 
-        # Get version and pkgrel from AUR PKGBUILD
-        cd aur-repo
-        AUR_VERSION=$(grep "^pkgver=" PKGBUILD | cut -d'=' -f2)
-        AUR_PKGREL=$(grep "^pkgrel=" PKGBUILD | cut -d'=' -f2)
+          # Get version and pkgrel from AUR PKGBUILD
+          cd aur-repo
+          AUR_VERSION=$(grep "^pkgver=" PKGBUILD | cut -d'=' -f2)
+          AUR_PKGREL=$(grep "^pkgrel=" PKGBUILD | cut -d'=' -f2)
 
-        echo "AUR version: $AUR_VERSION, pkgrel: $AUR_PKGREL"
+          echo "AUR version: $AUR_VERSION, pkgrel: $AUR_PKGREL"
 
-        # Calculate correct pkgrel based on AUR state
-        if [ "$LOCAL_VERSION" = "$AUR_VERSION" ]; then
-          # Same version: increment AUR pkgrel
-          NEW_PKGREL=$((AUR_PKGREL + 1))
-          echo "Same version, incrementing pkgrel from $AUR_PKGREL to $NEW_PKGREL"
+          # Calculate correct pkgrel based on AUR state
+          if [ "$LOCAL_VERSION" = "$AUR_VERSION" ]; then
+            # Same version: increment AUR pkgrel
+            NEW_PKGREL=$((AUR_PKGREL + 1))
+            echo "Same version, incrementing pkgrel from $AUR_PKGREL to $NEW_PKGREL"
+          else
+            # Different version: reset pkgrel to 1
+            NEW_PKGREL=1
+            echo "Different version ($LOCAL_VERSION vs $AUR_VERSION), resetting pkgrel to 1"
+          fi
+
+          echo "LOCAL_VERSION=$LOCAL_VERSION" >> $GITHUB_ENV
+          echo "NEW_PKGREL=$NEW_PKGREL" >> $GITHUB_ENV
+
+          # Get current checksum from PKGBUILD
+          CURRENT_CHECKSUM=$(grep "sha256sums=" PKGBUILD | sed "s/sha256sums=('//; s/')//")
+          echo "CURRENT_CHECKSUM=$CURRENT_CHECKSUM" >> $GITHUB_ENV
+
+          # Update pkgrel in our local PKGBUILD
+          cd ..
+          sed -i "s/^pkgrel=.*/pkgrel=$NEW_PKGREL/" PKGBUILD
+
+          # Generate .SRCINFO manually with correct pkgrel
+          {
+            echo "pkgbase = note-gen"
+            echo -e "\tpkgdesc = A cross-platform Markdown note-taking application with AI integration"
+            echo -e "\tpkgver = $LOCAL_VERSION"
+            echo -e "\tpkgrel = $NEW_PKGREL"
+            echo -e "\turl = https://github.com/codexu/note-gen"
+            echo -e "\tarch = x86_64"
+            echo -e "\tlicense = MIT"
+            echo -e "\tmakedepends = rust"
+            echo -e "\tmakedepends = cargo"
+            echo -e "\tmakedepends = nodejs"
+            echo -e "\tmakedepends = npm"
+            echo -e "\tmakedepends = pnpm"
+            echo -e "\tmakedepends = pkgconf"
+            echo -e "\tmakedepends = clang"
+            echo -e "\tdepends = gtk3"
+            echo -e "\tdepends = webkit2gtk-4.1"
+            echo -e "\tdepends = libappindicator-gtk3"
+            echo -e "\tdepends = librsvg"
+            echo -e "\tdepends = libvips"
+            echo -e "\tdepends = libxcb"
+            echo -e "\tdepends = libxrandr"
+            echo -e "\tprovides = note-gen"
+            echo -e "\tconflicts = note-gen-bin"
+            echo -e "\toptions = !strip"
+            echo -e "\tsource = note-gen-$LOCAL_VERSION.tar.gz::https://github.com/codexu/note-gen/archive/note-gen-v$LOCAL_VERSION.tar.gz"
+            echo -e "\tsha256sums = ($CURRENT_CHECKSUM)"
+            echo ""
+            echo "pkgname = note-gen"
+          } > .SRCINFO
+
+          echo "Updated PKGBUILD and .SRCINFO with pkgrel=$NEW_PKGREL"
         else
-          # Different version: reset pkgrel to 1
-          NEW_PKGREL=1
-          echo "Different version ($LOCAL_VERSION vs $AUR_VERSION), resetting pkgrel to 1"
+          echo "ℹ️ Skipping pkgrel calculation and file updates - no changes detected"
         fi
-
-        echo "LOCAL_VERSION=$LOCAL_VERSION" >> $GITHUB_ENV
-        echo "NEW_PKGREL=$NEW_PKGREL" >> $GITHUB_ENV
-
-        # Get current checksum from PKGBUILD
-        CURRENT_CHECKSUM=$(grep "sha256sums=" PKGBUILD | sed "s/sha256sums=('//; s/')//")
-        echo "CURRENT_CHECKSUM=$CURRENT_CHECKSUM" >> $GITHUB_ENV
-
-        # Update pkgrel in our local PKGBUILD
-        cd ..
-        sed -i "s/^pkgrel=.*/pkgrel=$NEW_PKGREL/" PKGBUILD
-
-        # Generate .SRCINFO manually with correct pkgrel
-        {
-          echo "pkgbase = note-gen"
-          echo -e "\tpkgdesc = A cross-platform Markdown note-taking application with AI integration"
-          echo -e "\tpkgver = $LOCAL_VERSION"
-          echo -e "\tpkgrel = $NEW_PKGREL"
-          echo -e "\turl = https://github.com/codexu/note-gen"
-          echo -e "\tarch = x86_64"
-          echo -e "\tlicense = MIT"
-          echo -e "\tmakedepends = rust"
-          echo -e "\tmakedepends = cargo"
-          echo -e "\tmakedepends = nodejs"
-          echo -e "\tmakedepends = npm"
-          echo -e "\tmakedepends = pnpm"
-          echo -e "\tmakedepends = pkgconf"
-          echo -e "\tmakedepends = clang"
-          echo -e "\tdepends = gtk3"
-          echo -e "\tdepends = webkit2gtk-4.1"
-          echo -e "\tdepends = libappindicator-gtk3"
-          echo -e "\tdepends = librsvg"
-          echo -e "\tdepends = libvips"
-          echo -e "\tdepends = libxcb"
-          echo -e "\tdepends = libxrandr"
-          echo -e "\tprovides = note-gen"
-          echo -e "\tconflicts = note-gen-bin"
-          echo -e "\toptions = !strip"
-          echo -e "\tsource = note-gen-$LOCAL_VERSION.tar.gz::https://github.com/codexu/note-gen/archive/note-gen-v$LOCAL_VERSION.tar.gz"
-          echo -e "\tsha256sums = ($CURRENT_CHECKSUM)"
-          echo ""
-          echo "pkgname = note-gen"
-        } > .SRCINFO
-
-        echo "Updated PKGBUILD and .SRCINFO with pkgrel=$NEW_PKGREL"
 
     - name: Commit pkgrel update to GitHub repository
+      if: env.NO_CHANGES != 'true'
       run: |
         git config user.name "ChHsich"
         git config user.email "hsichingchang@gmail.com"
@@ -142,6 +147,7 @@ jobs:
         git push origin main
 
     - name: Deploy to AUR
+      if: env.NO_CHANGES != 'true'
       run: |
         cd aur-repo
 
