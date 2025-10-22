@@ -60,7 +60,7 @@ jobs:
           echo "NO_CHANGES=true" >> $GITHUB_ENV
         fi
 
-        if [ "${{ env.NO_CHANGES }}" != "true" ]; then
+        if [ "$NO_CHANGES" != "true" ]; then
           # Get current version and pkgrel from local PKGBUILD
           LOCAL_VERSION=$(grep "^pkgver=" PKGBUILD | cut -d'=' -f2)
           LOCAL_PKGREL=$(grep "^pkgrel=" PKGBUILD | cut -d'=' -f2)
@@ -139,14 +139,22 @@ jobs:
         git config user.name "ChHsich"
         git config user.email "hsichingchang@gmail.com"
 
-        # Add and commit changes first, then pull to avoid rebase conflicts
+        # Add changes first
         git add PKGBUILD .SRCINFO
-        git commit -m "🔖 chore(aur): update pkgrel to ${{ env.NEW_PKGREL }} based on AUR state"
 
-        # Pull any remote changes and merge (using merge instead of rebase for simplicity)
-        git pull origin main
+        # Check if there are actually changes to commit
+        if git diff --cached --quiet; then
+          echo "ℹ️ No changes to commit, possibly due to sync conflicts"
+        else
+          # Commit changes
+          git commit -m "🔖 chore(aur): update pkgrel to ${{ env.NEW_PKGREL }} based on AUR state"
 
-        git push origin main
+          # Pull any remote changes and merge
+          git pull origin main
+
+          # Push to GitHub
+          git push origin main
+        fi
 
     - name: Deploy to AUR
       if: env.NO_CHANGES != 'true'
@@ -159,8 +167,7 @@ jobs:
         # Check for changes
         if git diff --quiet && git diff --cached --quiet; then
           echo "ℹ️ No changes to deploy"
-          exit 0
-        fi
+        else
 
         # Configure Git for AUR
         git config user.name "ChHsich"
@@ -170,6 +177,7 @@ jobs:
         git add PKGBUILD .SRCINFO
         git commit -m "🔖 chore(aur): update to version ${{ env.LOCAL_VERSION }}-${{ env.NEW_PKGREL }}"
         git push origin master
+        fi
 
     - name: Clean up SSH keys
       if: always()
