@@ -47,9 +47,18 @@ jobs:
         fi
         echo "✅ PKGBUILD syntax validation passed"
 
-    - name: Clone AUR repository and calculate correct pkgrel
+    - name: Clone AUR repository and compare PKGBUILD content
       run: |
         git clone ssh://aur@aur.archlinux.org/note-gen.git aur-repo
+
+        # Compare local PKGBUILD with AUR PKGBUILD content
+        echo "Comparing local PKGBUILD with AUR PKGBUILD content..."
+        if ! diff PKGBUILD aur-repo/PKGBUILD > /dev/null 2>&1; then
+          echo "✅ PKGBUILD content has changes, proceeding with pkgrel calculation"
+        else
+          echo "ℹ️ PKGBUILD content is identical to AUR, no changes needed"
+          exit 0
+        fi
 
         # Get current version and pkgrel from local PKGBUILD
         LOCAL_VERSION=$(grep "^pkgver=" PKGBUILD | cut -d'=' -f2)
