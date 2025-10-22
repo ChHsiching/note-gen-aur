@@ -4,7 +4,6 @@ on:
   push:
     paths:
       - 'PKGBUILD'
-      - '.SRCINFO'
     branches:
       - main
 
@@ -16,6 +15,8 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GH_TOKEN }}
 
     - name: Setup SSH for AUR
       run: |
@@ -45,15 +46,60 @@ jobs:
         fi
         echo "✅ PKGBUILD syntax validation passed"
 
-    - name: Clone AUR repository
+    - name: Clone AUR repository and calculate correct pkgrel
       run: |
         git clone ssh://aur@aur.archlinux.org/note-gen.git aur-repo
+
+        # Get current version and pkgrel from local PKGBUILD
+        LOCAL_VERSION=$(grep "^pkgver=" PKGBUILD | cut -d'=' -f2)
+        LOCAL_PKGREL=$(grep "^pkgrel=" PKGBUILD | cut -d'=' -f2)
+
+        echo "Local version: $LOCAL_VERSION, pkgrel: $LOCAL_PKGREL"
+
+        # Get version and pkgrel from AUR PKGBUILD
+        cd aur-repo
+        AUR_VERSION=$(grep "^pkgver=" PKGBUILD | cut -d'=' -f2)
+        AUR_PKGREL=$(grep "^pkgrel=" PKGBUILD | cut -d'=' -f2)
+
+        echo "AUR version: $AUR_VERSION, pkgrel: $AUR_PKGREL"
+
+        # Calculate correct pkgrel based on AUR state
+        if [ "$LOCAL_VERSION" = "$AUR_VERSION" ]; then
+          # Same version: increment AUR pkgrel
+          NEW_PKGREL=$((AUR_PKGREL + 1))
+          echo "Same version, incrementing pkgrel from $AUR_PKGREL to $NEW_PKGREL"
+        else
+          # Different version: reset pkgrel to 1
+          NEW_PKGREL=1
+          echo "Different version ($LOCAL_VERSION vs $AUR_VERSION), resetting pkgrel to 1"
+        fi
+
+        echo "LOCAL_VERSION=$LOCAL_VERSION" >> $GITHUB_ENV
+        echo "NEW_PKGREL=$NEW_PKGREL" >> $GITHUB_ENV
+
+        # Update pkgrel in our local PKGBUILD
+        cd ..
+        sed -i "s/^pkgrel=.*/pkgrel=$NEW_PKGREL/" PKGBUILD
+
+        # Regenerate .SRCINFO with correct pkgrel
+        makepkg --printsrcinfo > .SRCINFO
+
+        echo "Updated PKGBUILD and .SRCINFO with pkgrel=$NEW_PKGREL"
+
+    - name: Commit pkgrel update to GitHub repository
+      run: |
+        git config user.name "ChHsich"
+        git config user.email "hsichingchang@gmail.com"
+
+        git add PKGBUILD .SRCINFO
+        git commit -m "🔖 chore(aur): update pkgrel to ${{ env.NEW_PKGREL }} based on AUR state"
+        git push origin main
 
     - name: Deploy to AUR
       run: |
         cd aur-repo
 
-        # Copy package files
+        # Copy updated package files
         cp ../PKGBUILD ../.SRCINFO ./
 
         # Check for changes
@@ -62,14 +108,14 @@ jobs:
           exit 0
         fi
 
-        # Configure Git
-        git config user.name "GitHub Actions"
-        git config user.email "actions@github.com"
+        # Configure Git for AUR
+        git config user.name "ChHsich"
+        git config user.email "hsichingchang@gmail.com"
 
-        # Commit and push
+        # Commit and push to AUR master branch
         git add PKGBUILD .SRCINFO
-        git commit -m "Update NoteGen package"
-        git push
+        git commit -m "🔖 chore(aur): update to version ${{ env.LOCAL_VERSION }}-${{ env.NEW_PKGREL }}"
+        git push origin master
 
     - name: Clean up SSH keys
       if: always()
