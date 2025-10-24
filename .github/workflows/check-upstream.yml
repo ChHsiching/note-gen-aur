@@ -25,7 +25,8 @@ jobs:
     - name: Check upstream release
       run: |
         # Get latest release from GitHub API
-        LATEST_RELEASE=$(curl -s "https://api.github.com/repos/codexu/note-gen/releases/latest" | jq -r '.tag_name' | sed 's/note-gen-v//')
+        LATEST_RELEASE=$(curl -s "https://api.github.com/repos/codexu/note-gen/releases/latest" |
+                         jq -r '.tag_name' | sed 's/note-gen-v//')
 
         echo "Latest release: $LATEST_RELEASE"
         echo "Current version: $CURRENT_VERSION"
@@ -47,14 +48,15 @@ jobs:
         sed -i "s/^pkgver=.*/pkgver=$NEW_VERSION/" PKGBUILD
         sed -i "s/^pkgrel=.*/pkgrel=1/" PKGBUILD
 
-        # Update source URL
+        # Update source URL in PKGBUILD
         sed -i "s/note-gen-v[0-9.]*/note-gen-v$NEW_VERSION/" PKGBUILD
 
-        # Download new source and generate checksum
-        SOURCE_URL=$(grep "source=" PKGBUILD | sed 's/.*"\(.*\)".*/\1/' | head -1)
+        # Construct source URL for new version
+        SOURCE_URL="note-gen-$NEW_VERSION.tar.gz::https://github.com/codexu/note-gen/archive/note-gen-v$NEW_VERSION.tar.gz"
         echo "Downloading source from: $SOURCE_URL"
 
-        FILENAME=$(basename "$SOURCE_URL")
+        # Set filename for download
+        FILENAME="note-gen-$NEW_VERSION.tar.gz"
         curl -L -o "$FILENAME" "$SOURCE_URL"
 
         CHECKSUM=$(sha256sum "$FILENAME" | cut -d' ' -f1)
@@ -62,37 +64,12 @@ jobs:
 
         sed -i "s/sha256sums=.*/sha256sums=('$CHECKSUM')/" PKGBUILD
 
-        # Generate .SRCINFO manually
-        {
-          echo "pkgbase = note-gen"
-          echo -e "\tpkgdesc = A cross-platform Markdown note-taking application with AI integration"
-          echo -e "\tpkgver = $NEW_VERSION"
-          echo -e "\tpkgrel = 1"
-          echo -e "\turl = https://github.com/codexu/note-gen"
-          echo -e "\tarch = x86_64"
-          echo -e "\tlicense = MIT"
-          echo -e "\tmakedepends = rust"
-          echo -e "\tmakedepends = cargo"
-          echo -e "\tmakedepends = nodejs"
-          echo -e "\tmakedepends = npm"
-          echo -e "\tmakedepends = pnpm"
-          echo -e "\tmakedepends = pkgconf"
-          echo -e "\tmakedepends = clang"
-          echo -e "\tdepends = gtk3"
-          echo -e "\tdepends = webkit2gtk-4.1"
-          echo -e "\tdepends = libappindicator-gtk3"
-          echo -e "\tdepends = librsvg"
-          echo -e "\tdepends = libvips"
-          echo -e "\tdepends = libxcb"
-          echo -e "\tdepends = libxrandr"
-          echo -e "\tprovides = note-gen"
-          echo -e "\tconflicts = note-gen-bin"
-          echo -e "\toptions = !strip"
-          echo -e "\tsource = note-gen-$NEW_VERSION.tar.gz::https://github.com/codexu/note-gen/archive/note-gen-v$NEW_VERSION.tar.gz"
-          echo -e "\tsha256sums = ($CHECKSUM)"
-          echo ""
-          echo "pkgname = note-gen"
-        } > .SRCINFO
+        # Update .SRCINFO using template approach
+        # Use current .SRCINFO as template and update key fields
+        sed -i "s/\tpkgver = .*/\tpkgver = $NEW_VERSION/" .SRCINFO
+        sed -i "s/\tpkgrel = .*/\tpkgrel = 1/" .SRCINFO
+        sed -i "s/note-gen-v[0-9.]*/note-gen-v$NEW_VERSION/g" .SRCINFO
+        sed -i "s/\tsha256sums = .*/\tsha256sums = $CHECKSUM/" .SRCINFO
 
         echo "Updated PKGBUILD and .SRCINFO for version $NEW_VERSION"
 
