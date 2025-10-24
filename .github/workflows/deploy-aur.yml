@@ -175,6 +175,10 @@ jobs:
 
         # Copy updated package files
         cp ../PKGBUILD ../.SRCINFO ./
+        # Copy install file if it exists
+        if [ -f "../note-gen.install" ]; then
+          cp ../note-gen.install ./
+        fi
 
         # Check for changes
         if git diff --quiet && git diff --cached --quiet; then
