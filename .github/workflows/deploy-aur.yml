@@ -94,6 +94,7 @@ jobs:
           echo "✅ PKGBUILD content has changes, proceeding with pkgrel calculation"
         else
           echo "ℹ️ PKGBUILD content is identical to AUR, no changes needed"
+          NO_CHANGES=true
           echo "NO_CHANGES=true" >> $GITHUB_ENV
         fi
 
