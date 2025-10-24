@@ -13,7 +13,7 @@ checkdepends=('patchelf')
 provides=('note-gen')
 conflicts=('note-gen-bin')
 options=('!strip' '!lto')
-source=("$pkgname-$pkgver.tar.gz::$url/archive/note-gen-v0.22.2$pkgver.tar.gz")
+source=("$pkgname-$pkgver.tar.gz::$url/archive/note-gen-v$pkgver.tar.gz")
 sha256sums=('f2843e71ce01f95c6dafe33dcdaa114a5cf8f15651e40668a427ab8fe178cee4')
 
 install=$pkgname.install

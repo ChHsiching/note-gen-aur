@@ -31,7 +31,7 @@ pkgbase = note-gen
 	conflicts = note-gen-bin
 	options = !strip
 	options = !lto
-	source = note-gen-0.22.1.tar.gz::https://github.com/codexu/note-gen/archive/note-gen-v0.22.2tar.gz
+	source = note-gen-0.22.2.tar.gz::https://github.com/codexu/note-gen/archive/note-gen-v0.22.2.tar.gz
 	sha256sums = f2843e71ce01f95c6dafe33dcdaa114a5cf8f15651e40668a427ab8fe178cee4
 
 pkgname = note-gen
