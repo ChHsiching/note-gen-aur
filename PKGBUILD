@@ -19,14 +19,14 @@ sha256sums=('87b8a5af2c8596304890a275bbbba294a01aeb3040ea3dbb3fb12011425ee06b')
 install=$pkgname.install
 
 prepare() {
-    cd "$pkgname-v$pkgver"
+    cd "$pkgname-$pkgname-v$pkgver"
     # Set up build environment
     export npm_config_build_from_source=true
     export CARGO_HOME="$srcdir/.cargo"
 }
 
 build() {
-    cd "$pkgname-v$pkgver"
+    cd "$pkgname-$pkgname-v$pkgver"
     export CARGO_HOME="$srcdir/.cargo"
     export npm_config_build_from_source=true
 
@@ -39,7 +39,7 @@ build() {
 }
 
 package() {
-    cd "$pkgname-v$pkgver/src-tauri"
+    cd "$pkgname-$pkgname-v$pkgver/src-tauri"
     export CARGO_HOME="$srcdir/.cargo"
 
     # Install binary file (renamed to note-gen-real)
