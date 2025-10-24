@@ -51,6 +51,33 @@ jobs:
       run: |
         git clone ssh://aur@aur.archlinux.org/note-gen.git aur-repo
 
+        # Check if .SRCINFO was updated together with PKGBUILD
+        echo "Checking if .SRCINFO was updated together with PKGBUILD..."
+
+        # Get files changed in the last commit
+        CHANGED_FILES=$(git diff-tree --no-commit-id --name-only HEAD~1 HEAD)
+
+        PKGBUILD_CHANGED=false
+        SRCINFO_CHANGED=false
+
+        for file in $CHANGED_FILES; do
+          if [ "$file" = "PKGBUILD" ]; then
+            PKGBUILD_CHANGED=true
+          fi
+          if [ "$file" = ".SRCINFO" ]; then
+            SRCINFO_CHANGED=true
+          fi
+        done
+
+        if [ "$PKGBUILD_CHANGED" = true ] && [ "$SRCINFO_CHANGED" = false ]; then
+          echo "❌ ERROR: PKGBUILD was modified but .SRCINFO was not updated!"
+          echo "Please run 'makepkg --printsrcinfo > .SRCINFO' in Arch Linux env"
+          echo "and commit both PKGBUILD and .SRCINFO together."
+          exit 1
+        fi
+
+        echo "✅ Both PKGBUILD and .SRCINFO were updated together"
+
         # Compare local PKGBUILD with AUR PKGBUILD content
         echo "Comparing local PKGBUILD with AUR PKGBUILD content..."
         if ! diff PKGBUILD aur-repo/PKGBUILD > /dev/null 2>&1; then
@@ -88,47 +115,22 @@ jobs:
           echo "LOCAL_VERSION=$LOCAL_VERSION" >> $GITHUB_ENV
           echo "NEW_PKGREL=$NEW_PKGREL" >> $GITHUB_ENV
 
-          # Get current checksum from PKGBUILD
-          CURRENT_CHECKSUM=$(grep "sha256sums=" PKGBUILD | sed "s/sha256sums=('//; s/')//")
-          echo "CURRENT_CHECKSUM=$CURRENT_CHECKSUM" >> $GITHUB_ENV
-
-          # Update pkgrel in our local PKGBUILD
+          # Check and update pkgrel in our submitted PKGBUILD and .SRCINFO if needed
           cd ..
-          sed -i "s/^pkgrel=.*/pkgrel=$NEW_PKGREL/" PKGBUILD
 
-          # Generate .SRCINFO manually with correct pkgrel
-          {
-            echo "pkgbase = note-gen"
-            echo -e "\tpkgdesc = A cross-platform Markdown note-taking application with AI integration"
-            echo -e "\tpkgver = $LOCAL_VERSION"
-            echo -e "\tpkgrel = $NEW_PKGREL"
-            echo -e "\turl = https://github.com/codexu/note-gen"
-            echo -e "\tarch = x86_64"
-            echo -e "\tlicense = MIT"
-            echo -e "\tmakedepends = rust"
-            echo -e "\tmakedepends = cargo"
-            echo -e "\tmakedepends = nodejs"
-            echo -e "\tmakedepends = npm"
-            echo -e "\tmakedepends = pnpm"
-            echo -e "\tmakedepends = pkgconf"
-            echo -e "\tmakedepends = clang"
-            echo -e "\tdepends = gtk3"
-            echo -e "\tdepends = webkit2gtk-4.1"
-            echo -e "\tdepends = libappindicator-gtk3"
-            echo -e "\tdepends = librsvg"
-            echo -e "\tdepends = libvips"
-            echo -e "\tdepends = libxcb"
-            echo -e "\tdepends = libxrandr"
-            echo -e "\tprovides = note-gen"
-            echo -e "\tconflicts = note-gen-bin"
-            echo -e "\toptions = !strip"
-            echo -e "\tsource = note-gen-$LOCAL_VERSION.tar.gz::https://github.com/codexu/note-gen/archive/note-gen-v$LOCAL_VERSION.tar.gz"
-            echo -e "\tsha256sums = ($CURRENT_CHECKSUM)"
-            echo ""
-            echo "pkgname = note-gen"
-          } > .SRCINFO
+          # Get current pkgrel from our submitted PKGBUILD
+          LOCAL_PKGREL=$(grep "^pkgrel=" PKGBUILD | cut -d'=' -f2)
+          echo "Our PKGBUILD pkgrel: $LOCAL_PKGREL, calculated pkgrel: $NEW_PKGREL"
 
-          echo "Updated PKGBUILD and .SRCINFO with pkgrel=$NEW_PKGREL"
+          # Update pkgrel in both files if needed
+          if [ "$LOCAL_PKGREL" != "$NEW_PKGREL" ]; then
+            echo "Updating pkgrel from $LOCAL_PKGREL to $NEW_PKGREL in both files"
+            sed -i "s/^pkgrel=.*/pkgrel=$NEW_PKGREL/" PKGBUILD
+            sed -i "s/\tpkgrel = .*/\tpkgrel = $NEW_PKGREL/" .SRCINFO
+            echo "Updated both PKGBUILD and .SRCINFO with correct pkgrel"
+          else
+            echo "PKGBUILD already has correct pkgrel, no updates needed"
+          fi
         else
           echo "ℹ️ Skipping pkgrel calculation and file updates - no changes detected"
         fi
