@@ -57,7 +57,7 @@ jobs:
 
         # Set filename for download
         FILENAME="note-gen-$NEW_VERSION.tar.gz"
-        curl -L -o "$FILENAME" "$SOURCE_URL"
+        curl -L -o "$FILENAME" "${SOURCE_URL#*::}"
 
         CHECKSUM=$(sha256sum "$FILENAME" | cut -d' ' -f1)
         echo "Generated checksum: $CHECKSUM"
