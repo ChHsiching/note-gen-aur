@@ -49,7 +49,7 @@ jobs:
         sed -i "s/^pkgrel=.*/pkgrel=1/" PKGBUILD
 
         # Update source URL in PKGBUILD
-        sed -i "s/note-gen-v[0-9.]*/note-gen-v$NEW_VERSION/" PKGBUILD
+        sed -i "s/archive\/note-gen-v[0-9\.]*\.tar\.gz/archive\/note-gen-v$NEW_VERSION.tar.gz/" PKGBUILD
 
         # Construct source URL for new version
         SOURCE_URL="note-gen-$NEW_VERSION.tar.gz::https://github.com/codexu/note-gen/archive/note-gen-v$NEW_VERSION.tar.gz"
