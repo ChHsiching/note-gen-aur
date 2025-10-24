@@ -191,6 +191,10 @@ jobs:
 
         # Commit and push to AUR master branch
         git add PKGBUILD .SRCINFO
+        # Add install file if it exists
+        if [ -f "note-gen.install" ]; then
+          git add note-gen.install
+        fi
         git commit -m "🔖 chore(aur): update to version ${{ env.LOCAL_VERSION }}-${{ env.NEW_PKGREL }}"
         git push origin master
         fi
