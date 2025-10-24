@@ -18,6 +18,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         token: ${{ secrets.GH_TOKEN }}
+        fetch-depth: 0
 
     - name: Setup SSH for AUR
       run: |
@@ -54,8 +55,14 @@ jobs:
         # Check if .SRCINFO was updated together with PKGBUILD
         echo "Checking if .SRCINFO was updated together with PKGBUILD..."
 
-        # Get files changed in the last commit
-        CHANGED_FILES=$(git diff-tree --no-commit-id --name-only HEAD~1 HEAD)
+        # Get files changed in the last commit with fallback
+        if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+          CHANGED_FILES=$(git diff-tree --no-commit-id --name-only HEAD~1 HEAD)
+          echo "Checking files changed in last commit..."
+        else
+          echo "No previous commit found, checking staged files..."
+          CHANGED_FILES=$(git diff --cached --name-only)
+        fi
 
         PKGBUILD_CHANGED=false
         SRCINFO_CHANGED=false
@@ -68,6 +75,9 @@ jobs:
             SRCINFO_CHANGED=true
           fi
         done
+
+        echo "PKGBUILD changed: $PKGBUILD_CHANGED"
+        echo "SRCINFO changed: $SRCINFO_CHANGED"
 
         if [ "$PKGBUILD_CHANGED" = true ] && [ "$SRCINFO_CHANGED" = false ]; then
           echo "❌ ERROR: PKGBUILD was modified but .SRCINFO was not updated!"
