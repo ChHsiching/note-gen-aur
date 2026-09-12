@@ -35,7 +35,9 @@ jobs:
         mkdir -p ~/.ssh
         echo "${{ secrets.AUR_SSH_KEY }}" > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H aur.archlinux.org >> ~/.ssh/known_hosts
+        # accept-new instead of ssh-keyscan: port-22 scanning from the
+        # job container can silently return no keys
+        git config --global core.sshCommand "ssh -o StrictHostKeyChecking=accept-new"
 
     - name: Compare with AUR and compute pkgrel
       run: |
