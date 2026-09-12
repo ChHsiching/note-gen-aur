@@ -53,39 +53,27 @@ jobs:
           exit 0
         fi
 
-    - name: Update PKGBUILD and .SRCINFO for new version
+    - name: Update PKGBUILD for new version
       if: env.NEW_VERSION
       run: |
         NEW_VERSION="${{ env.NEW_VERSION }}"
 
-        # Update PKGBUILD
+        # Update PKGBUILD only — .SRCINFO is regenerated from PKGBUILD by
+        # the deploy pipeline (makepkg --printsrcinfo). Never sed-edit
+        # .SRCINFO here: template edits are how the nullnull/eaten-dot
+        # URL corruption happened twice.
         sed -i "s/^pkgver=.*/pkgver=$NEW_VERSION/" PKGBUILD
         sed -i "s/^pkgrel=.*/pkgrel=1/" PKGBUILD
-
-        # Update source URL in PKGBUILD
         sed -i "s/archive\/note-gen-v[0-9\.]*\.tar\.gz/archive\/note-gen-v$NEW_VERSION.tar.gz/" PKGBUILD
 
-        # Construct source URL for new version
-        SOURCE_URL="note-gen-$NEW_VERSION.tar.gz::https://github.com/codexu/note-gen/archive/note-gen-v$NEW_VERSION.tar.gz"
-        echo "Downloading source from: $SOURCE_URL"
-
-        # Set filename for download
         FILENAME="note-gen-$NEW_VERSION.tar.gz"
-        curl -L -o "$FILENAME" "${SOURCE_URL#*::}"
+        curl -fSL -o "$FILENAME" "https://github.com/codexu/note-gen/archive/note-gen-v$NEW_VERSION.tar.gz"
 
         CHECKSUM=$(sha256sum "$FILENAME" | cut -d' ' -f1)
         echo "Generated checksum: $CHECKSUM"
-
         sed -i "s/sha256sums=.*/sha256sums=('$CHECKSUM')/" PKGBUILD
 
-        # Update .SRCINFO using template approach
-        # Use current .SRCINFO as template and update key fields
-        sed -i "s/\tpkgver = .*/\tpkgver = $NEW_VERSION/" .SRCINFO
-        sed -i "s/\tpkgrel = .*/\tpkgrel = 1/" .SRCINFO
-        sed -i "s/note-gen-v[0-9.]*/note-gen-v$NEW_VERSION/g" .SRCINFO
-        sed -i "s/\tsha256sums = .*/\tsha256sums = $CHECKSUM/" .SRCINFO
-
-        echo "Updated PKGBUILD and .SRCINFO for version $NEW_VERSION"
+        echo "Updated PKGBUILD for version $NEW_VERSION"
 
     - name: Commit version update
       if: env.NEW_VERSION
@@ -94,8 +82,8 @@ jobs:
         git config user.email "hsichingchang@gmail.com"
 
         NEW_VERSION="${{ env.NEW_VERSION }}"
-        git add PKGBUILD .SRCINFO
+        git add PKGBUILD
         git commit -m "🚀 chore(upstream): update to version $NEW_VERSION"
         git push origin main
 
-        echo "Version $NEW_VERSION committed and pushed"
+        echo "Version $NEW_VERSION committed and pushed (deploy workflow will build and publish)"
