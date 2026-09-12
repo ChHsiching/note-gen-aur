@@ -80,6 +80,10 @@ jobs:
     - name: Build gate — real makepkg build, then regenerate .SRCINFO
       if: env.NO_CHANGES != 'true'
       run: |
+        # resource monitor: OOM/ENOSPC are invisible in job logs otherwise
+        (while true; do echo "[mon] $(date +%T) df: $(df -h / | tail -1 | awk '{print $4" free"}') mem: $(free -m | awk '/Mem:/{print $7"Mi avail"}')"; sleep 60; done) &
+        MON=$!
+
         # makepkg refuses to run as root; build as an unprivileged user
         useradd -m builder 2>/dev/null || true
         chown -R builder:builder .
@@ -88,6 +92,13 @@ jobs:
         # official-repo dependencies, this fails and nothing is pushed
         # to the AUR.
         runuser -u builder -- makepkg -sf --noconfirm
+        rc=$?
+        kill $MON 2>/dev/null
+        if [ $rc -ne 0 ]; then
+          echo "== last monitor samples =="
+          dmesg 2>/dev/null | tail -5 || true
+          exit $rc
+        fi
 
         # .SRCINFO is always regenerated from the final PKGBUILD —
         # no template editing, no stale filenames, no null garbage.
