@@ -17,8 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: archlinux:base-devel
-      # default 64MB /dev/shm starves turbopack/swc worker IPC
-      options: --shm-size=2g
+      # default 64MB /dev/shm starves turbopack/swc worker IPC; the
+      # soft nofile limit (1024) starves tailwind/postcss file scanning;
+      # --init gives the container a proper PID1 to reap workers
+      options: --shm-size=2g --init --ulimit nofile=65536:65536
     timeout-minutes: 90
     if: startsWith(github.ref, 'refs/heads/main')
 
@@ -80,6 +82,7 @@ jobs:
     - name: Build gate — real makepkg build, then regenerate .SRCINFO
       if: env.NO_CHANGES != 'true'
       run: |
+        echo "ulimit -n = $(ulimit -n); nproc = $(nproc)"
         # resource monitor: OOM/ENOSPC are invisible in job logs otherwise
         (while true; do echo "[mon] $(date +%T) df: $(df -h / | tail -1 | awk '{print $4" free"}') mem: $(free -m | awk '/Mem:/{print $7"Mi avail"}')"; sleep 60; done) &
         MON=$!
