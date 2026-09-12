@@ -62,6 +62,14 @@ if (overrides) {
   fs.appendFileSync("pnpm-workspace.yaml", lines.join("\n") + "\n");
 }'
 
+    # Upstream's monorepo releases reference their own npm packages
+    # published hours earlier; pnpm 11's default supply-chain policy
+    # (minimumReleaseAge) rejects anything published within the last
+    # 24h. The lockfile is frozen (integrity-pinned), so relax the age
+    # policy for this build.
+    grep -q '^minimumReleaseAge:' pnpm-workspace.yaml || \
+        echo 'minimumReleaseAge: 0' >> pnpm-workspace.yaml
+
     # libspa-sys 0.8.0 pins bindgen 0.69, which cannot lay out
     # spa_pod_builder from pipewire >= 1.6 headers and emits an opaque
     # type, breaking the libspa 0.8.0 build. Vendor the crate with the
