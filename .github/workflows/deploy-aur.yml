@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: archlinux:base-devel
+      # default 64MB /dev/shm starves turbopack/swc worker IPC
+      options: --shm-size=2g
     timeout-minutes: 90
     if: startsWith(github.ref, 'refs/heads/main')
 
